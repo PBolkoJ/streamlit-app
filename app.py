@@ -4,6 +4,7 @@ import pandas as pd
 import time
 from datetime import datetime
 import ccxt
+import csv
 import sys
 import os
 
@@ -48,7 +49,7 @@ history = pd.DataFrame(columns=["time", "account", "percent_change"])
 initial_values = {}
 
 
-def get_portfolio_value(exchange, account_name):
+def get_portfolio_value(exchange):
     """Získa celkovú hodnotu portfólia v EUR."""
     balance = exchange.fetch_balance()
     eur_balance = balance["total"].get("EUR", 0)
@@ -66,6 +67,38 @@ def get_portfolio_value(exchange, account_name):
     return round(total_value, 2)
 
 
+def save_values_to_csv():
+    with open("Data/data_a1.csv", mode="a", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow([data_a1])  # Zapisujeme ako zoznam
+
+    with open("Data/data_a2.csv", mode="a", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow([data_a2])  # Zapisujeme ako zoznam
+
+    with open("Data/data_a3.csv", mode="a", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow([data_a3])  # Zapisujeme ako zoznam
+
+    with open("Data/data_main.csv", mode="a", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow([data_main])  # Zapisujeme ako zoznam
+
+
+def read_values_from_csv():
+    def read_single_value(file_path):
+        with open(file_path, mode="r", newline="", encoding="utf-8") as file:
+            reader = csv.reader(file)
+            return float(next(reader)[0])  # Prečítame prvú hodnotu a skonvertujeme na float
+
+    return (
+        read_single_value("Data/data_a1.csv"),
+        read_single_value("Data/data_a2.csv"),
+        read_single_value("Data/data_a3.csv"),
+        read_single_value("Data/data_main.csv"),
+    )
+
+
 # Nastavenie stránky
 st.set_page_config(page_title="📈 Percentuálna zmena portfólia", layout="wide")
 st.title("📊 Vývoj portfólia v percentách")
@@ -74,18 +107,26 @@ st.title("📊 Vývoj portfólia v percentách")
 graph_container = st.empty()
 
 # Interval aktualizácie
-refresh_rate = 60 * 30
+refresh_rate = 5
+
+portfolio_values = {}
 
 while True:
     current_time = datetime.now().strftime("%H:%M:%S")
 
-    # Získanie hodnôt portfólia
-    portfolio_values = {
-        "Účet 1": get_portfolio_value(exchange_a1, "Účet 1"),
-        "Účet 2": get_portfolio_value(exchange_a2, "Účet 2"),
-        "Účet 3": get_portfolio_value(exchange_a3, "Účet 3"),
-        "Účet Main": get_portfolio_value(exchange_main, "Účet Main"),
-    }
+    data_a1 = get_portfolio_value(exchange_a1)
+    data_a2 = get_portfolio_value(exchange_a2)
+    data_a3 = get_portfolio_value(exchange_a3)
+    data_main = get_portfolio_value(exchange_main)
+
+    save_values_to_csv()
+
+    a1_values, a2_values, a3_values, main_values = read_values_from_csv()
+
+    portfolio_values["Account_a1"] = a1_values
+    portfolio_values["Account_a2"] = a2_values
+    portfolio_values["Account_a3"] = a3_values
+    portfolio_values["Account_main"] = main_values
 
     # Uloženie počiatočných hodnôt
     for account, value in portfolio_values.items():
@@ -99,7 +140,7 @@ while True:
             "percent_change": ((value - initial_values[account]) / initial_values[account]) * 100,
             "time": current_time
         }
-        for account, value in portfolio_values.items()
+        for account, value in portfolio_values.items() if account in initial_values
     ]
 
     # Aktualizácia histórie
